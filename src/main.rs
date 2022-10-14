@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 #[derive(Clone, Debug)]
 enum Token {
     Add,
@@ -11,7 +13,7 @@ enum Token {
 impl Token {
     pub fn precedence(&self) -> Option<u8> {
         use Token::*;
-      
+
         match self {
             Add | Sub => Some(1),
             Mul | Div => Some(2),
@@ -114,23 +116,22 @@ impl Lexer {
     fn handle_number(&mut self) -> Token {
         let mut num: f64 = 0.0;
         let mut decimal_places: i32 = -1;
-      
-        while let Some(digit) = self.curr() {      
+
+        while let Some(digit) = self.curr() {
             if let Some(value) = digit.to_digit(10) {
                 if decimal_places < 0 {
                     num *= 10.0;
                     num += value as f64;
                 } else {
                     decimal_places += 1;
-                    num += (0.1_f64).powi(decimal_places)*value as f64;
+                    num += (0.1_f64).powi(decimal_places) * value as f64;
                 }
 
                 self.inc();
-            }  else if digit == '.' && decimal_places < 0 {
+            } else if digit == '.' && decimal_places < 0 {
                 decimal_places = 0;
                 self.inc();
-            }  
-            else {
+            } else {
                 break;
             }
         }
@@ -139,6 +140,7 @@ impl Lexer {
     }
 }
 
+#[derive(Debug, Clone)]
 enum Node {
     Add(Box<Node>, Box<Node>),
     Sub(Box<Node>, Box<Node>),
@@ -148,47 +150,65 @@ enum Node {
     Number(f64),
 }
 
-struct Parser {
-    tree: Vec<Node>, 
-    op_queue: Vec<Token>,
-}
+fn parse(tokens: Vec<Token>) -> Option<Node> {
+    let mut op_queue: VecDeque<Token> = VecDeque::new();
+    let mut rpn: VecDeque<Token> = VecDeque::new();
 
-impl Default for Parser {
-    fn default() -> Self {
-        Parser {
-            tree: vec![],
-            op_queue: vec![],
+    for token in tokens {
+        if let Token::Number(_) = token {
+            rpn.push_back(token);
+        } else if let Token::Brackets(_contents) = token {
+            todo!();
+        } else {
+            while let Some(operator) = op_queue.pop_front() {
+                if operator.precedence()? > token.precedence()? {
+                    rpn.push_back(operator);
+                } else {
+                    op_queue.push_front(operator);
+                    break;
+                }
+            }
+
+            op_queue.push_front(token);
         }
     }
-}
 
-impl Parser {
-    fn parse(&self, tokens: Vec<Token>) -> Option<Node> {
-        for token in tokens {
-            if let Token::Number(x) = token {
-                tree.push(Node::Number(x));
-            } else if let Token::Brackets(_contents) = token {
-                todo!();
-            } else {
-                while let Some(operator) = self.op_queue.first() {
-                    if operator.precedence()? > token.precedence()? {
-                        self.op_queue.pop_fron
-                    }
+    while let Some(operator) = op_queue.pop_front() {
+        rpn.push_back(operator);
+    }
+
+    let mut stack = vec![];
+
+    while let Some(token) = rpn.pop_front() {
+        match token {
+            Token::Number(x) => stack.push(Node::Number(x)),
+            _ => {
+                let x = Box::new(stack.pop()?);
+                let y = Box::new(stack.pop()?);
+
+                if let Token::Mul = token {
+                    stack.push(Node::Mul(x, y));
+                } else if let Token::Add = token {
+                    stack.push(Node::Add(x, y));
+                } else if let Token::Sub = token {
+                    stack.push(Node::Sub(x, y));
+                } else if let Token::Div = token {
+                    stack.push(Node::Div(x, y));
                 }
             }
         }
-
-        todo!()
     }
+
+    stack.last().cloned()
 }
 
 fn calc(expr: &str) -> f64 {
-    println!("{}", expr);
     let mut lexer = Lexer::new(expr);
-    println!("{:?}", lexer.lex());
+    let tokens = lexer.lex();
+    println!("{:?}", parse(tokens));
     todo!()
 }
 
 fn main() {
-    println!("{:?}", calc("(23.*(234.123))"));
+    println!("{:?}", calc("1+2*3-4"));
 }
