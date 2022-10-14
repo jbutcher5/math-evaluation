@@ -183,8 +183,8 @@ fn parse(tokens: Vec<Token>) -> Option<Node> {
         match token {
             Token::Number(x) => stack.push(Node::Number(x)),
             _ => {
-                let x = Box::new(stack.pop()?);
                 let y = Box::new(stack.pop()?);
+                let x = Box::new(stack.pop()?);
 
                 if let Token::Mul = token {
                     stack.push(Node::Mul(x, y));
@@ -202,10 +202,21 @@ fn parse(tokens: Vec<Token>) -> Option<Node> {
     stack.last().cloned()
 }
 
+fn eval(ast: Node) -> f64 {
+    match ast {
+        Node::Number(x) => x,
+        Node::Add(x, y) => eval(*x) + eval(*y),
+        Node::Mul(x, y) => eval(*x) * eval(*y),
+        Node::Sub(x, y) => eval(*x) - eval(*y),
+        Node::Div(x, y) => eval(*x) / eval(*y),
+        Node::Negate(x) => -eval(*x),
+    }
+}
+
 fn calc(expr: &str) -> f64 {
     let mut lexer = Lexer::new(expr);
     let tokens = lexer.lex();
-    println!("{:?}", parse(tokens));
+    println!("{:?}", eval(parse(tokens).unwrap()));
     todo!()
 }
 
