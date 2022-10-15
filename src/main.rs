@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 enum Token {
     Add,
     Sub,
+    Negate,
     Mul,
     Div,
     Number(f64),
@@ -15,7 +16,7 @@ impl Token {
         use Token::*;
 
         match self {
-            Add | Sub => Some(1),
+            Add | Sub | Negate => Some(1),
             Mul | Div => Some(2),
             _ => None,
         }
@@ -84,7 +85,7 @@ impl Lexer {
             buffer.push(node);
         }
 
-        buffer
+        self.find_negate_operators(buffer)
     }
 
     fn handle_brackets(&mut self) -> Token {
@@ -138,6 +139,35 @@ impl Lexer {
 
         Token::Number(num)
     }
+
+    fn find_negate_operators(&self, tokens: Vec<Token>) -> Vec<Token> {
+        let mut new_tokens = tokens.into_iter().map(Some).collect::<Vec<Option<Token>>>();
+        new_tokens.push(None);
+
+        for i in 0..new_tokens.len() - 1 {
+            let _first = &new_tokens.clone()[i];
+            let second = &new_tokens.clone()[i + 1];
+
+            if i == 0 && matches!(Some(Token::Sub), _first) {
+                if let Some(Token::Number(x)) = second {
+                    new_tokens[i] = None;
+                    new_tokens[i + 1] = Some(Token::Number(-x));
+                }
+            } else if let (
+                Some(Token::Sub | Token::Add | Token::Mul | Token::Div),
+                Some(Token::Sub),
+            ) = (_first, second)
+            {
+                new_tokens[i + 1] = Some(Token::Negate);
+            }
+        }
+
+        new_tokens
+            .into_iter()
+            .filter(|x| x.is_some())
+            .map(|x| x.unwrap())
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -183,17 +213,20 @@ fn parse(tokens: Vec<Token>) -> Option<Node> {
         match token {
             Token::Number(x) => stack.push(Node::Number(x)),
             _ => {
-                let y = Box::new(stack.pop()?);
-                let x = Box::new(stack.pop()?);
+                let y = stack.pop();
+                let x = stack.pop();
 
                 if let Token::Mul = token {
-                    stack.push(Node::Mul(x, y));
+                    stack.push(Node::Mul(Box::new(x?), Box::new(y?)));
                 } else if let Token::Add = token {
-                    stack.push(Node::Add(x, y));
+                    stack.push(Node::Add(Box::new(x?), Box::new(y?)));
                 } else if let Token::Sub = token {
-                    stack.push(Node::Sub(x, y));
+                    stack.push(Node::Sub(Box::new(x?), Box::new(y?)));
                 } else if let Token::Div = token {
-                    stack.push(Node::Div(x, y));
+                    stack.push(Node::Div(Box::new(x?), Box::new(y?)));
+                } else if let Token::Negate = token {
+                    x.map(|x| stack.push(x));
+                    stack.push(Node::Negate(Box::new(y?)));
                 }
             }
         }
@@ -216,10 +249,10 @@ fn eval(ast: Node) -> f64 {
 fn calc(expr: &str) -> f64 {
     let mut lexer = Lexer::new(expr);
     let tokens = lexer.lex();
-    println!("{:?}", eval(parse(tokens).unwrap()));
-    todo!()
+    let parsed = parse(tokens).unwrap();
+    eval(parsed)
 }
 
 fn main() {
-    println!("{:?}", calc("1+2*3-4"));
+    println!("{:?}", calc("1--1"));
 }
