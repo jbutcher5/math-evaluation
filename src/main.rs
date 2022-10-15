@@ -16,9 +16,10 @@ impl Token {
         use Token::*;
 
         match self {
-            Add | Sub | Negate => Some(1),
+            Add | Sub => Some(1),
             Mul => Some(2),
             Div => Some(3),
+            Negate => Some(4),
             _ => None,
         }
     }
@@ -248,5 +249,5 @@ fn calc(expr: &str) -> f64 {
 }
 
 fn main() {
-    println!("{:?}", calc("2 / (2 + 3) * 4.33 - -6"));
+    println!("{:?}", calc("12* 123/(-5 + 2)"));
 }
