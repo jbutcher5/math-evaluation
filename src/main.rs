@@ -146,30 +146,22 @@ impl Lexer {
         new_tokens.push(None);
 
         for i in 0..new_tokens.len() - 1 {
-            let _first = &new_tokens.clone()[i];
-            let second = &new_tokens.clone()[i + 1];
+            let window = (&new_tokens[i], &new_tokens[i + 1]);
 
-            if i == 0 && matches!(Some(Token::Sub), _first) {
-                if let Some(Token::Number(x)) = second {
-                    new_tokens[i] = None;
-                    new_tokens[i + 1] = Some(Token::Number(-x));
-                } else if let Some(Token::Brackets(_)) = second {
+            if i == 0 {
+                if let (Some(Token::Sub), Some(Token::Brackets(_) | Token::Number(_))) = window {
                     new_tokens[i] = Some(Token::Negate);
                 }
             } else if let (
                 Some(Token::Sub | Token::Add | Token::Mul | Token::Div),
                 Some(Token::Sub),
-            ) = (_first, second)
+            ) = window
             {
                 new_tokens[i + 1] = Some(Token::Negate);
             }
         }
 
-        new_tokens
-            .into_iter()
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
-            .collect()
+        new_tokens.into_iter().filter_map(|x| x).collect()
     }
 }
 
