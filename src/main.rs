@@ -17,7 +17,8 @@ impl Token {
 
         match self {
             Add | Sub | Negate => Some(1),
-            Mul | Div => Some(2),
+            Mul => Some(2),
+            Div => Some(3),
             _ => None,
         }
     }
@@ -152,6 +153,8 @@ impl Lexer {
                 if let Some(Token::Number(x)) = second {
                     new_tokens[i] = None;
                     new_tokens[i + 1] = Some(Token::Number(-x));
+                } else if let Some(Token::Brackets(_)) = second {
+                    new_tokens[i] = Some(Token::Negate);
                 }
             } else if let (
                 Some(Token::Sub | Token::Add | Token::Mul | Token::Div),
@@ -185,10 +188,8 @@ fn parse(tokens: Vec<Token>) -> Option<Node> {
     let mut rpn: VecDeque<Token> = VecDeque::new();
 
     for token in tokens {
-        if let Token::Number(_) = token {
+        if let Token::Number(_) | Token::Brackets(_) = token {
             rpn.push_back(token);
-        } else if let Token::Brackets(_contents) = token {
-            todo!();
         } else {
             while let Some(operator) = op_queue.pop_front() {
                 if operator.precedence()? > token.precedence()? {
@@ -212,6 +213,7 @@ fn parse(tokens: Vec<Token>) -> Option<Node> {
     while let Some(token) = rpn.pop_front() {
         match token {
             Token::Number(x) => stack.push(Node::Number(x)),
+            Token::Brackets(contents) => stack.push(parse(contents)?),
             _ => {
                 let y = stack.pop();
                 let x = stack.pop();
@@ -249,10 +251,10 @@ fn eval(ast: Node) -> f64 {
 fn calc(expr: &str) -> f64 {
     let mut lexer = Lexer::new(expr);
     let tokens = lexer.lex();
-    let parsed = parse(tokens).unwrap();
-    eval(parsed)
+    let ast = parse(tokens).unwrap();
+    eval(ast)
 }
 
 fn main() {
-    println!("{:?}", calc("1--1"));
+    println!("{:?}", calc("2 / (2 + 3) * 4.33 - -6"));
 }
