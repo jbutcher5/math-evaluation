@@ -52,7 +52,7 @@ impl Lexer {
     pub fn lex(&mut self) -> Vec<Token> {
         let mut buffer = vec![];
 
-        while self.i <= self.data.len() - 1 {
+        while self.i < self.data.len() {
             self.skip_whitespace();
             if let Some(c) = self.curr() {
                 let node = match c {
@@ -96,7 +96,7 @@ impl Lexer {
                 trace += 1;
             } else if let Some(')') = self.curr() {
                 trace -= 1;
-            } else if let None = self.curr() {
+            } else if self.curr().is_none() {
                 panic!("Invalid Syntax.");
             }
 
@@ -114,7 +114,7 @@ impl Lexer {
         let mut num: Vec<char> = vec![];
 
         while let Some(digit) = self.curr() {
-            if digit.to_digit(10).is_some() || digit == '.' {
+            if digit.is_ascii_digit() || digit == '.' {
                 num.push(digit);
                 self.inc();
             } else {
@@ -169,8 +169,6 @@ impl Lexer {
             }
         }
 
-        let new_tokens = new_tokens.into_iter().filter_map(|x| x).collect();
-
-        new_tokens
+        new_tokens.into_iter().flatten().collect()
     }
 }
